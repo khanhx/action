@@ -4,7 +4,8 @@ description: "Setup node enviroment & install dependencies base on package-lock.
 inputs:
   node_version:
     description: "node version"
-    required: true
+    required: false
+    default: "16"
 
 runs:
   using: "composite"
