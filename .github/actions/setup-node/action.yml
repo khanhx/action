@@ -1,0 +1,28 @@
+name: "Setup node & dependencies"
+description: "Setup node enviroment & install dependencies base on package-lock.json"
+
+inputs:
+  node_version:
+    description: "node version"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: install node ${{inputs.node_version}}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{inputs.node_version}}
+        cache: "npm"
+
+    - uses: actions/cache@v3
+      id: cache-npm
+      with:
+        path: "**/node_modules"
+        key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+
+    - name: install package
+      shell: sh
+      if: steps.cache-npm.outputs.cache-hit != 'true'
+      run: |
+        npm install

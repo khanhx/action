@@ -1,0 +1,58 @@
+name: "Build docker"
+description: "Build docker image & push to ECR"
+
+inputs:
+  build_command:
+    description: "run build project"
+    required: true
+  docker_build_command:
+    description: "run build docker"
+    required: true
+  docker_tag:
+    description: "tag for assign to docker image"
+    required: true
+  AWS_REGION:
+    description: "tag for assign to docker image"
+    required: true
+  ECR_REGISTRY:
+    description: "tag for assign to docker image"
+    required: true
+  ECR_REPOSITORY:
+    description: "tag for assign to docker image"
+    required: true
+  KUBE_CONFIG_DATA:
+    description: "tag for assign to docker image"
+    required: true
+  deploy_yml_path:
+    description: "tag for assign to docker image"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build & push docker image
+      shell: sh
+      run: |
+        ${{ inputs.build_command }}
+        ${{ inputs.docker_build_command }} -t ${{ inputs.ECR_REPOSITORY }}
+        docker tag ${{ inputs.ECR_REPOSITORY }} ${{ inputs.ECR_REGISTRY }}/${{ inputs.ECR_REPOSITORY }}:latest
+        docker tag ${{ inputs.ECR_REPOSITORY }} ${{ inputs.ECR_REGISTRY }}/${{ inputs.ECR_REPOSITORY }}:${{ inputs.docker_tag }}
+        aws ecr get-login-password --region ${{ inputs.AWS_REGION}} | docker login --username AWS --password-stdin ${{inputs.ECR_REGISTRY}}
+        docker push ${{ inputs.ECR_REGISTRY }}/${{ inputs.ECR_REPOSITORY }}:latest
+        docker push ${{ inputs.ECR_REGISTRY }}/${{ inputs.ECR_REPOSITORY }}:${{ inputs.docker_tag }}
+
+    - name: Apply new deployment
+      uses: kodermax/kubectl-aws-eks@master
+      env:
+        KUBE_CONFIG_DATA: ${{ inputs.KUBE_CONFIG_DATA }}
+        ECR_REPOSITORY: ${{ inputs.ECR_REPOSITORY }}
+      with:
+        args: apply -f ${{ inputs.deploy_yml_path }}
+
+    - name: Deploy API
+      uses: kodermax/kubectl-aws-eks@master
+      env:
+        KUBE_CONFIG_DATA: ${{ inputs.KUBE_CONFIG_DATA }}
+        ECR_REPOSITORY: ${{ inputs.ECR_REPOSITORY }}
+      with:
+        args: rollout restart deploy ${{ inputs.ECR_REPOSITORY }}
